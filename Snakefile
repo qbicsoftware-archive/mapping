@@ -12,6 +12,8 @@ import hashlib
 import base64
 import csv
 import glob
+import numpy as np
+import pandas as pd
 
 configfile: "config.json"
 workdir: config['var']
@@ -30,7 +32,7 @@ DATA = config['data']
 RESULT = config['result']
 LOGS = config['logs']
 REF = config['ref']
-INI_PATH = config['etc']
+ETC = config['etc']
 
 
 def data(path):
@@ -73,13 +75,15 @@ if len(set(INPUT_FILES)) != len(INPUT_FILES):
     print("Some input file names are not unique")
     exit(1)
 
-OUTPUT_FILES = []
 
-OUTPUT_FILES.extend(expand(result("FastQC_{name}.zip"), name=INPUT_FILES))
-OUTPUT_FILES.extend(expand(result("FastQC_{name}.html"), name=INPUT_FILES))
+GROUPS = pd.read_csv(etc('groups.txt'), sep='\t')
+
+
+OUTPUT_FILES = []
+OUTPUT_FILES.extend(expand(result("fastqc/{name}"), name=INPUT_FILES))
 
 rule all:
-    input: OUTPUT_FILES
+    input: result("aligned.bam.bai"), OUTPUT_FILES, "checksums.ok"
 
 rule checksums:
     output: "checksums.ok"
@@ -89,14 +93,9 @@ rule checksums:
               "sha256sum -c *.sha256sum && "
               "touch %s" % (data('.'), out))
 
-rule flagstat:
-    input: "{file}.sorted.bam"
-    output: "{file}.sorted.bam.flagstat"
-    shell: "samtools flagstat {input} > {output}"
-
 rule fastqc:
     input: data("{name}.fastq.gz")
-    output: "fastqc/{name}"
+    output: result("fastqc/{name}")
     run:
         try:
             os.mkdir(str(output))
@@ -106,40 +105,44 @@ rule fastqc:
         shell("fastqc {input} -o {output}")
 
 
-def files_by_lane(wildcards):
-  lane = wildcards["lane"]
-  group = wildcards["group"]
-  return pares()
+def files_by_group(wildcards):
+    group = wildcards["group"]
+    files = GROUPS[GROUPS['group'] == group]
+    assert len(files) > 0
+    first = files[files['file'].str.contains('_R1')]
+    first = first.sort_values(by='file').reset_index(drop=True)
+    second = files[files['file'].str.contains('_R2')]
+    second = second.sort_values(by='file').reset_index(drop=True)
+    if not first['file'].str.replace('_R1', '_R2').equals(second['file']):
+        raise ValueError("Invalid file names for paired end sequencing")
+    first = list(sorted(first['file'].values))
+    second = list(sorted(second['file'].values))
+    return [data(file) for file in first + second]
 
 
-rule map_bwa:
-    input: files_by_lane
-    output: "map_bwa/{group}_{lane}.bam"
-    threads: 10
+rule bwa_mem:
+    input: files_by_group
+    output: "map_bwa/{group}.bam"
+    params: r"-t 10 -M -R '@RG\tID:{group}\tSM:{group}'"
     run:
-        # TODO additional header LB (library)?
-        options = r"-M -R '@RG\tID:{group}\tSM:{group}'".format(**wildcards)
-        options = options + " " + ref(str(config['params']['fasta']))
-        shell("bwa mem -t {threads} %s {input}/forward.fastq.gz {input}/backward.fastq.gz | samtools view -Sb - | samtools sort -O bam -T $(mktemp) - > {output}" % options)
+        fasta = ref(config['params']['fasta'])
+        first = " ".join(input[:len(input) / 2])
+        second = " ".join(input[len(input) / 2:])
+        assert len(first) == len(second)
+        shell(
+            "bwa mem {params} %s "
+                "<(cat %s) <(cat %s) |" % (fasta, first, second) +
+            "samtools sort -o -l1 -@2 -T $(mktemp) - > {output}"
+        )
 
-rule sam_sort:
-    input: "{file}.unsorted.bam"
-    output: "{file}.sorted.bam"
-    shell: "samtools sort -O bam -T $(mktemp) -o {output} {input}"
-
-rule sam_index:
-    input: "{file}.sorted.bam"
-    output: "{file}.sorted.bam.bai"
-    run:
-        shell("samtools index {input}")
 
 rule merge_groups:
-    input: "map_bwa/{pool}_{group}.bam"
-    output: result("merged/aligned.bam")
+    input: expand("map_bwa/{group}.bam", group=GROUPS['group'])
+    output: result("aligned.bam")
     shell: "samtools merge -l 9 -@ 5 {output} {input}"
 
+
 rule merge_sam_index:
-    input:  result("merged_bam/aligned.bam")
-    output: result("merged_bam/aligned.bam.bai")
-    run:
-        shell("samtools index {input}")
+    input:  "{name}.bam"
+    output: "{name}.bam.bai"
+    shell: "samtools index {input}"
