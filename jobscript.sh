@@ -11,14 +11,8 @@ set -e
 echo Running on machine $(hostname)
 
 module load qbic/anaconda
-module load devel/java_jdk/1.7.0u45
 module load bio/samtools/1.2
-module load qbic/ngs-bits
 module load qbic/bwa
-module load qbic/stampy
-module load qbic/picard/git
-module load bio/gatk/3.3
-module load qbic/annovar/0.1
 
 
 {exec_job}
