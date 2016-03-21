@@ -76,7 +76,28 @@ if len(set(INPUT_FILES)) != len(INPUT_FILES):
     exit(1)
 
 
-GROUPS = pd.read_csv(etc('groups.txt'), sep='\t')
+DESIGN = pd.read_csv(etc('groups.txt'), sep='\t')
+
+RUNS = {}
+for group, df in DESIGN.groupby('group'):
+    first = df[df['file'].str.contains('_R1')]
+    first = first.sort_values(by='file').reset_index(drop=True)
+    second = df[df['file'].str.contains('_R2')]
+    second = second.sort_values(by='file').reset_index(drop=True)
+    assert(len(df) == len(first) + len(second))
+    if not first['file'].str.replace('_R1', '_R2').equals(second['file']):
+        raise ValueError("Invalid file names for paired end sequencing")
+    first = list(sorted(first['file'].values))
+    second = list(sorted(second['file'].values))
+    prefix = [name[:name.find('_R1')] for name in first]
+    for prefix, file1, file2 in zip(prefix, first, second):
+        assert (group, prefix) not in RUNS
+        assert prefix and group
+        assert '___' not in group and '___' not in prefix
+        assert file1.startswith(prefix) and file2.startswith(prefix)
+        RUNS[(group, prefix)] = (file1, file2)
+
+print(RUNS)
 
 
 OUTPUT_FILES = []
@@ -87,6 +108,7 @@ rule all:
 
 rule checksums:
     output: "checksums.ok"
+    threads: 1
     run:
         out = os.path.abspath(str(output))
         shell("cd %s; "
@@ -96,6 +118,7 @@ rule checksums:
 rule fastqc:
     input: data("{name}.fastq.gz")
     output: result("fastqc/{name}")
+    threads: 1
     run:
         try:
             os.mkdir(str(output))
@@ -105,89 +128,90 @@ rule fastqc:
         shell("fastqc {input} -o {output}")
 
 
-def files_by_group(wildcards):
-    group = wildcards["group"]
-    files = GROUPS[GROUPS['group'] == group]
-    assert len(files) > 0
-    first = files[files['file'].str.contains('_R1')]
-    first = first.sort_values(by='file').reset_index(drop=True)
-    second = files[files['file'].str.contains('_R2')]
-    second = second.sort_values(by='file').reset_index(drop=True)
-    assert(len(files) == len(first) + len(second))
-    if not first['file'].str.replace('_R1', '_R2').equals(second['file']):
-        raise ValueError("Invalid file names for paired end sequencing")
-    first = list(sorted(first['file'].values))
-    second = list(sorted(second['file'].values))
-    return [data(file) for file in first + second]
+def align_sort(fastq, outfile, fasta, params=[]):
+    if not isinstance(fastq, (tuple, list)):
+        fastq = [fastq]
+    bwa_cmd = ['bwa', 'mem'] + params + [fasta, fastq1, fastq2]
+    assert len(fastq) in [1, 2]
+
+    if len(fastq) == 1:
+        params = ['-p'] + params
+    bwa = subprocess.Popen(
+        ['bwa', 'mem'] + params + [fasta] + list(fastq),
+        stdout=subprocess.PIPE,
+    )
+    sort = subprocess.Popen(
+        ['samtools', 'sort', 'l', '0', '-@', '10',
+         '-T', os.path.join(tmp, 'sort_tmp'),
+         '-O', 'bam', '-'],
+        stdin=bwa.stdout,
+        stdout=subprocess.PIPE,
+    )
+    bwa.stdout.close()
+    rmdup = subprocess.Popen(
+        ['samtools', 'rmdup', '-S', '-', str(output)],
+        stdin=sort.stdout,
+    )
+    sort.stdout.close()
+    retcode = rmdup.wait()
+    assert retcode == 0
+    assert bwa.retcode == 0
+    assert sort.retcode == 0
+
+
+def pipe_bam_to_fastq(bam, fastq, temp_prefix):
+    collate = subprocess.Popen(
+        ['samtools', 'collate', '-u', '-O', '-T', temp_prefix, bam],
+        stdout=subprocess.PIPE,
+    )
+    to_fastq = subprocess.Popen(
+        ['samtools', 'fastq', '-i', '-', fastq],
+        stdin=collate.stdout,
+    )
+    collate.stdout.close()
+    return collate, to_fastq
 
 
 rule bwa_mem:
-    input: files_by_group
-    output: "map_bwa/{group}.bam"
-    params: r"-t 10 -M -R '@RG\tID:{group}\tSM:{group}'"
-    run:
-        fasta = ref(config['params']['fasta'])
-        first = " ".join(input[:len(input) / 2])
-        second = " ".join(input[len(input) / 2:])
-        assert len(first) == len(second)
-        shell(
-            "bwa mem {params} %s "
-                "<(cat %s) <(cat %s) |" % (fasta, first, second) +
-            "samtools sort -o -l1 -@2 -T $(mktemp) - > {output}"
-        )
-
-
-def bamfile_by_group(wildcards):
-    group = wildcards['group']
-    file = GROUPS[GROUPS['group'] == group]
-    assert len(file) == 1
-    return [data(file['file'].values[0]), data(file['file'].values[0] + '.bai')]
-
-
-rule bwa_mem_bam:
-    input: bamfile_by_group
-    output: "map_bwa/{group}.bam"
-    params: "-t10", "-M", "-R", r"@RG\tID:{group}\tSM:{group}"
+    input: lambda w: [data(p) for p in RUNS[(w['group'], w['prefix'])]]
+    output: "map_bwa/{group}___{prefix}.bam"
+    params: "-t 20", "-M", "-R", r"@RG\tID:{group}\tSM:{group}"
     run:
         fasta = ref(config['params']['fasta'])
         with tempfile.TemporaryDirectory() as tmp:
-            sorted_bam = os.path.join(tmp, 'sorted.bam')
-            first = os.path.join(tmp, 'first.fastq')
-            mapped = os.path.join(tmp, 'mapped')
-            sort_temp = os.path.join(tmp, 'sort_tmp')
-            sort_temp2 = os.path.join(tmp, 'sort_tmp2')
-            os.mkdir(sort_temp)
-            os.mkfifo(sorted_bam)
-            os.mkfifo(first)
-            os.mkfifo(mapped)
-            sort = subprocess.Popen(['samtools', 'sort', '-n', '-@', '5',
-                                     '-o', sorted_bam, '-O', 'bam',
-                                     '-T', sort_temp2,
-                                     str(input[0])])
-            to_fastq = subprocess.Popen(
-                ['bedtools', 'bamtofastq', '-i', sorted_bam, '-fq', first]
-            )
-            mapping = subprocess.Popen(
-                ['bwa', 'mem', '-p'] + list(params) + [fasta, first],
-                stdout=subprocess.PIPE,
-            )
-            sort = subprocess.Popen(
-                ["samtools", "sort", "-l", "1", "-@", "5", "-T", sort_temp,
-                 '-O', 'bam', "-o", str(output), '-'],
-                stdin=mapping.stdout,
-            )
-            mapping.stdout.close()
-            retcode = sort.wait()
-            assert retcode == 0
+            progs = []
+            # We accept either 1 bam or 2 fastq files
+            if len(input) == 1:
+                assert input[0].endswith('.bam') or input[0].endswith('.cram')
+                params.append('-p')
+                fastq = [os.path.join(tmp, 'as_fastq.fastq')]
+                tmp_prefix = os.path.join(tmp, 'collate')
+                progs.extend(pipe_bam_to_fastq(input[0], fastq[0], tmp_prefix))
+            elif len(input) == 2:
+                assert all((name.endswith('.fastq') or
+                            name.endswith('.fastq.gz') or
+                            name.endswith('.fq') or
+                            name.endswith('.fq.gz')) for name in input)
+                fastq = list(input)
+            else:
+                raise ValueError('Invalid input: %s' % input)
+            align_sort(fastq, output, fasta, params)
+            time.sleep(1)
+            for prog in progs:
+                assert prog.retcode == 0
 
 
 rule merge_groups:
-    input: expand("map_bwa/{group}.bam", group=GROUPS['group'])
+    input:
+        ["map_bwa/{group}___{prefix}.bam".format(group=key[0], prefix=key[1])
+         for key in RUNS]
     output: result("aligned.bam")
-    shell: "samtools merge -l 9 -@ 5 {output} {input}"
+    threads: 10
+    shell: "samtools merge -l 9 -@ 20 {output} {input}"
 
 
 rule bam_index:
     input:  "{name}.bam"
     output: "{name}.bam.bai"
+    threads: 1
     shell: "samtools index {input}"
