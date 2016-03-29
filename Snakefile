@@ -76,7 +76,7 @@ if len(set(INPUT_FILES)) != len(INPUT_FILES):
     exit(1)
 
 
-DESIGN = pd.read_csv(etc('groups.txt'), sep='\t')
+DESIGN = pd.read_csv(etc('GROUPS'), sep='\t')
 
 RUNS = {}
 for group, df in DESIGN.groupby('group'):
