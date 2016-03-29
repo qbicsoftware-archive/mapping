@@ -116,7 +116,7 @@ rule checksums:
               "touch %s" % (data('.'), out))
 
 rule fastqc:
-    input: data("{name}.fastq.gz")
+    input: data("{name}.fastq")
     output: result("fastqc/{name}")
     threads: 1
     run:
