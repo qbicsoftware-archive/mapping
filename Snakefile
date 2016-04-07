@@ -126,7 +126,7 @@ rule fastqc:
         shell("fastqc {input} -o {output}")
 
 
-def align_sort(fastq, outfile, fasta, params=[]):
+def align_sort(fastq, outfile, fasta, params=[], tmp):
     if not isinstance(fastq, (tuple, list)):
         fastq = [fastq]
     assert len(fastq) in [1, 2]
@@ -192,7 +192,7 @@ rule bwa_mem:
                 fastq = list(input)
             else:
                 raise ValueError('Invalid input: %s' % input)
-            align_sort(fastq, output, fasta, params)
+            align_sort(fastq, output, fasta, params, tmp)
             time.sleep(1)
             for prog in progs:
                 assert prog.retcode == 0
