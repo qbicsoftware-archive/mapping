@@ -192,7 +192,7 @@ rule bwa_mem:
                 fastq = list(input)
             else:
                 raise ValueError('Invalid input: %s' % input)
-            align_sort(fastq, output, fasta, ,tmp, params)
+            align_sort(fastq, output, fasta, tmp, params)
             time.sleep(1)
             for prog in progs:
                 assert prog.retcode == 0
