@@ -97,7 +97,6 @@ for group, df in DESIGN.groupby('group'):
         assert file1.startswith(prefix) and file2.startswith(prefix)
         RUNS[(group, prefix)] = (file1, file2)
 
-print(RUNS)
 
 
 OUTPUT_FILES = []
@@ -124,14 +123,12 @@ rule fastqc:
             os.mkdir(str(output))
         except Exception:
             pass
-        #TODO jobscript load module
         shell("fastqc {input} -o {output}")
 
 
 def align_sort(fastq, outfile, fasta, params=[]):
     if not isinstance(fastq, (tuple, list)):
         fastq = [fastq]
-    bwa_cmd = ['bwa', 'mem'] + params + [fasta, fastq1, fastq2]
     assert len(fastq) in [1, 2]
 
     if len(fastq) == 1:
