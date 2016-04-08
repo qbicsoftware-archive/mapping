@@ -138,7 +138,7 @@ def align_sort(fastq, outfile, fasta, tmp, params=[]):
         stdout=subprocess.PIPE,
     )
     sort = subprocess.Popen(
-        ['samtools', 'sort', 'l', '0', '-@', '10',
+        ['samtools', 'sort', '-l', '0', '-@', '10',
          '-T', os.path.join(tmp, 'sort_tmp'),
          '-O', 'bam', '-'],
         stdin=bwa.stdout,
