@@ -152,8 +152,8 @@ def align_sort(fastq, outfile, fasta, tmp, params=[]):
     sort.stdout.close()
     retcode = rmdup.wait()
     assert retcode == 0
-    assert bwa.retcode == 0
-    assert sort.retcode == 0
+    assert bwa.returncode == 0
+    assert sort.returncode == 0
 
 
 def pipe_bam_to_fastq(bam, fastq, temp_prefix):
@@ -195,7 +195,7 @@ rule bwa_mem:
             align_sort(fastq, output, fasta, tmp, params)
             time.sleep(1)
             for prog in progs:
-                assert prog.retcode == 0
+                assert prog.returncode == 0
 
 
 rule merge_groups:
