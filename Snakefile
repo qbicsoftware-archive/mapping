@@ -146,7 +146,7 @@ def align_sort(fastq, outfile, fasta, tmp, params=[]):
     )
     bwa.stdout.close()
     rmdup = subprocess.Popen(
-        ['samtools', 'rmdup', '-S', '-', str(output)],
+        ['samtools', 'rmdup', '-S', '-', str(outfile)],
         stdin=sort.stdout,
     )
     sort.stdout.close()
