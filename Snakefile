@@ -149,7 +149,7 @@ def align_sort(fastq, outfile, fasta, tmp, params=[]):
         ['samtools', 'rmdup', '-S', '-', str(outfile)],
         stdin=sort.stdout,
     )
-    sort.stdout.close()
+    #sort.stdout.close()
     rmdup.stdin.close()
     retcode = rmdup.wait()
     assert retcode == 0
