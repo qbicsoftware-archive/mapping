@@ -150,6 +150,7 @@ def align_sort(fastq, outfile, fasta, tmp, params=[]):
         stdin=sort.stdout,
     )
     sort.stdout.close()
+    rmdup.stdin.close()
     retcode = rmdup.wait()
     assert retcode == 0
     assert bwa.returncode == 0
