@@ -11,7 +11,7 @@ set -e
 echo Running on machine $(hostname)
 
 module load qbic/anaconda
-module load bio/samtools/1.2
+module load qbic/samtools/1.3
 module load qbic/bwa
 module load qbic/fastqc/0.11.4
 
