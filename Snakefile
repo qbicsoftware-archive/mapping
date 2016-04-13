@@ -136,6 +136,7 @@ def align_sort(fastq, outfile, fasta, tmp, params=[]):
     bwa = subprocess.Popen(
         ['bwa', 'mem'] + params + [fasta] + list(fastq),
         stdout=subprocess.PIPE,
+        stderr=sys.stderr
     )
     sort = subprocess.Popen(
         ['samtools', 'sort', '-l', '0', '-@', '10',
@@ -143,14 +144,15 @@ def align_sort(fastq, outfile, fasta, tmp, params=[]):
          '-O', 'bam', '-'],
         stdin=bwa.stdout,
         stdout=subprocess.PIPE,
+        stderr=sys.stderr
     )
     bwa.stdout.close()
     rmdup = subprocess.Popen(
         ['samtools', 'rmdup', '-S', '-', str(outfile)],
         stdin=sort.stdout,
+        stderr=sys.stderr
     )
-    #sort.stdout.close()
-    rmdup.stdin.close()
+    sort.stdout.close()
     retcode = rmdup.wait()
     assert retcode == 0
     assert bwa.returncode == 0
@@ -161,10 +163,12 @@ def pipe_bam_to_fastq(bam, fastq, temp_prefix):
     collate = subprocess.Popen(
         ['samtools', 'collate', '-u', '-O', '-T', temp_prefix, bam],
         stdout=subprocess.PIPE,
+        stderr=sys.stderr
     )
     to_fastq = subprocess.Popen(
         ['samtools', 'fastq', '-i', '-', fastq],
         stdin=collate.stdout,
+        stderr=sys.stderr
     )
     collate.stdout.close()
     return collate, to_fastq
