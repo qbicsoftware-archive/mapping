@@ -148,14 +148,13 @@ def align_sort(fastq, outfile, fasta, tmp, params=[]):
     )
     bwa.stdout.close()
     rmdup = subprocess.Popen(
-        ['samtools', 'rmdup', '-S', '-', str(outfile)],
+        ['strace', '-f', '--','samtools', 'rmdup', '-S', '-', str(outfile)],
         stdin=sort.stdout,
         stderr=sys.stderr
     )
     sort.stdout.close()
-    output = rmdup.communicate()[0]
-    #retcode = rmdup.wait()
-    #assert retcode == 0
+    retcode = rmdup.wait()
+    assert retcode == 0
     assert rmdup.returncode == 0
     assert bwa.returncode == 0
     assert sort.returncode == 0
