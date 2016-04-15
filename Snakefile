@@ -143,19 +143,20 @@ def align_sort(fastq, outfile, fasta, tmp, params=[]):
          '-T', os.path.join(tmp, 'sort_tmp'),
          '-O', 'bam', '-'],
         stdin=bwa.stdout,
-        stdout=subprocess.PIPE,
+        #stdout=subprocess.PIPE,
         stderr=sys.stderr
     )
     bwa.stdout.close()
-    rmdup = subprocess.Popen(
-        ['strace', '-f', '--','samtools', 'rmdup', '-S', '-', str(outfile)],
-        stdin=sort.stdout,
-        stderr=sys.stderr
-    )
-    sort.stdout.close()
-    retcode = rmdup.wait()
+    #rmdup = subprocess.Popen(
+    #    ['samtools', 'rmdup', '-S', '-', str(outfile)],
+    #    stdin=sort.stdout,
+    #    stderr=sys.stderr
+    #)
+    #sort.stdout.close()
+    #retcode = rmdup.wait()
+    retcode = sort.wait()
     assert retcode == 0
-    assert rmdup.returncode == 0
+    #assert rmdup.returncode == 0
     assert bwa.returncode == 0
     assert sort.returncode == 0
 
