@@ -138,15 +138,35 @@ def align_sort(fastq, outfile, fasta, tmp, params=[]):
         stdout=subprocess.PIPE,
         stderr=sys.stderr
     )
+
+    sort_tmp = os.path.join(tmp,'sortedtmp.bam')
+
     sort = subprocess.Popen(
         ['samtools', 'sort', '-l', '0', '-@', '10',
          '-T', os.path.join(tmp, 'sort_tmp'),
-         '-O', 'bam', '-o', str(outfile), '-'],
+         '-O', 'bam', '-o', sort_tmp, '-'],
         stdin=bwa.stdout,
-        #stdout=subprocess.PIPE,
+        stdout=sys.stdout,
         stderr=sys.stderr
     )
+
     bwa.stdout.close()
+    
+    retcodebwa = bwa.wait()
+    retcodesort = sort.wait()
+    assert retcodebwa == 0
+    assert retcodesort = 0
+    assert bwa.returncode == 0
+    assert sort.returncode == 0
+    
+    rmdup = subprocess.Popen(['picard','MarkDuplicates','I='+sort_tmp,'O='+str(outfile), 'M='+os.path.join(tmp, 'output_matrix'),'AS=true','VALIDATION_STRINGENCY=LENIENT'],
+        stderr=sys.stderr,
+        stdout=sys.stdout
+    )  
+
+    retcodermdup = rmdup.wait()
+    assert retcodermdup == 0
+    assert rmdup.returncode ==0
     #rmdup = subprocess.Popen(
     #    ['samtools', 'rmdup', '-S', '-', str(outfile)],
     #    stdin=sort.stdout,
@@ -154,11 +174,11 @@ def align_sort(fastq, outfile, fasta, tmp, params=[]):
     #)
     #sort.stdout.close()
     #retcode = rmdup.wait()
-    retcode = sort.wait()
-    assert retcode == 0
+    #retcode = sort.wait()
+    #assert retcode == 0
     #assert rmdup.returncode == 0
-    assert bwa.returncode == 0
-    assert sort.returncode == 0
+    #assert bwa.returncode == 0
+    #assert sort.returncode == 0
 
 
 def pipe_bam_to_fastq(bam, fastq, temp_prefix):
