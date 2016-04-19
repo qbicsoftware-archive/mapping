@@ -155,7 +155,7 @@ def align_sort(fastq, outfile, fasta, tmp, params=[]):
     retcodebwa = bwa.wait()
     retcodesort = sort.wait()
     assert retcodebwa == 0
-    assert retcodesort = 0
+    assert retcodesort == 0
     assert bwa.returncode == 0
     assert sort.returncode == 0
     
