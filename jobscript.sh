@@ -14,6 +14,7 @@ module load qbic/anaconda
 module load qbic/samtools/1.3
 module load qbic/bwa
 module load qbic/fastqc/0.11.4
+module load qbic/picard/git
 
 {exec_job}
 exit 0
