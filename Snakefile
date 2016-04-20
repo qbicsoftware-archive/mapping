@@ -8,6 +8,7 @@ from os.path import exists as pexists
 import glob
 import numpy as np
 import pandas as pd
+import time
 
 configfile: "config.json"
 workdir: config['var']
@@ -110,9 +111,13 @@ rule checksums:
     threads: 1
     run:
         out = os.path.abspath(str(output))
-        shell("cd %s; "
-              "sha256sum -c *.sha256sum && "
-              "touch %s" % (data('.'), out))
+        cksums = glob.glob(data("*.sha256sum"))
+        if cksums:
+            shell("cd %s; "
+                  "sha256sum -c *.sha256sum && "
+                  "touch %s" % (data('.'), out))
+        else:
+            shell("touch %s" % out)
 
 rule fastqc:
     input: data("{name}.fastq")
@@ -167,19 +172,6 @@ def align_sort(fastq, outfile, fasta, tmp, params=[]):
     retcodermdup = rmdup.wait()
     assert retcodermdup == 0
     assert rmdup.returncode ==0
-    #rmdup = subprocess.Popen(
-    #    ['samtools', 'rmdup', '-S', '-', str(outfile)],
-    #    stdin=sort.stdout,
-    #    stderr=sys.stderr
-    #)
-    #sort.stdout.close()
-    #retcode = rmdup.wait()
-    #retcode = sort.wait()
-    #assert retcode == 0
-    #assert rmdup.returncode == 0
-    #assert bwa.returncode == 0
-    #assert sort.returncode == 0
-
 
 def pipe_bam_to_fastq(bam, fastq, temp_prefix):
     collate = subprocess.Popen(
