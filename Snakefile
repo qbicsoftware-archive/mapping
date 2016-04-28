@@ -189,7 +189,9 @@ def pipe_bam_to_fastq(bam, fastq, temp_prefix):
 
 rule trim:
     input: lambda w: [data(p) for p in RUNS[(w['group'], w['prefix'])]]
-    output: "trim/"
+    output: output:
+       R="trim/{group}___{prefix}.fastq",
+       L="trim/{group}___{prefix}.fastq"
     params: "-match_perc 80", "-qcut 15"
     run:
         # TODO more than two elements per group
@@ -210,14 +212,17 @@ rule trim:
         else:
                 raise ValueError('Invalid input: %s' % input)
 	shell("SeqPurge -in1 fastq[0] -in2 fastq[1] "
-              + "-out1 {output}/fastq[0] -out2 {output}/fastq[1] "
+              + "-out1 output['R'] -out2 output['L'] "
               + params)
 
 rule bwa_mem:
-    input: lambda w: ["trim/" + p for p in RUNS[(w['group'], w['prefix'])]]
+    #input: lambda w: ["trim/" + p for p in RUNS[(w['group'], w['prefix'])]]
+    input: R="trim/{group}___{prefix}.fastq",
+           L="trim/{group}___{prefix}.fastq"
     output: "map_bwa/{group}___{prefix}.bam"
     params: "-t 20", "-M", "-R", r"@RG\tID:{group}\tSM:{group}"
     run:
+	print(input)
         fasta = ref(config['params']['fasta'])
         with tempfile.TemporaryDirectory() as tmp:
             progs = []
@@ -240,7 +245,6 @@ rule bwa_mem:
             time.sleep(1)
             for prog in progs:
                 assert prog.returncode == 0
-
 
 rule merge_groups:
     input:
