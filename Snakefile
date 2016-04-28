@@ -187,9 +187,34 @@ def pipe_bam_to_fastq(bam, fastq, temp_prefix):
     collate.stdout.close()
     return collate, to_fastq
 
+rule trim:
+    input: lambda w: [data(p) for p in RUNS[(w['group'], w['prefix'])]]
+    output: "trim/"
+    params: "-match_perc 80", "-qcut 15"
+    run:
+        # TODO more than two elements per group
+        # TODO get adapters from fastcq
+        # TODO Default adapter is used
+        if len(input) == 1:
+                assert input[0].endswith('.bam') or input[0].endswith('.cram')
+                params.append('-p')
+                fastq = [os.path.join(tmp, 'as_fastq.fastq')]
+                tmp_prefix = os.path.join(tmp, 'collate')
+                progs.extend(pipe_bam_to_fastq(input[0], fastq[0], tmp_prefix))
+        elif len(input) == 2:
+                assert all((name.endswith('.fastq') or
+                            name.endswith('.fastq.gz') or
+                            name.endswith('.fq') or
+                            name.endswith('.fq.gz')) for name in input)
+                fastq = list(input)
+        else:
+                raise ValueError('Invalid input: %s' % input)
+	shell("SeqPurge -in1 fastq[0] -in2 fastq[1] "
+              + "-out1 {output}/fastq[0] -out2 {output}/fastq[1] "
+              + params)
 
 rule bwa_mem:
-    input: lambda w: [data(p) for p in RUNS[(w['group'], w['prefix'])]]
+    input: lambda w: ["trim/" + p for p in RUNS[(w['group'], w['prefix'])]]
     output: "map_bwa/{group}___{prefix}.bam"
     params: "-t 20", "-M", "-R", r"@RG\tID:{group}\tSM:{group}"
     run:
