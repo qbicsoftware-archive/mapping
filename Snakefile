@@ -213,8 +213,8 @@ rule trim:
                 raise ValueError('Invalid input: %s' % input)
         print(fastq[0])
         print(fastq[1])
-        shell("SeqPurge -in1 fastq[0] -in2 fastq[1] "
-              + "-out1 output['L'] -out2 output['R'] "
+        shell("SeqPurge -in1 " + fastq[0] + " -in2 " + fastq[1]
+              + " -out1 " + output['L'] + " -out2 " + output['R']
               + ' '.join(params))
 
 rule bwa_mem:
