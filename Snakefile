@@ -213,9 +213,8 @@ rule trim:
                 raise ValueError('Invalid input: %s' % input)
         print(fastq[0])
         print(fastq[1])
-        shell("SeqPurge -in1 " + fastq[0] + " -in2 " + fastq[1]
-              + " -out1 " + output['L'] + " -out2 " + output['R']
-              + ' '.join(params))
+        shell("SeqPurge " + ' '.join(params) + " -in1 " + fastq[0] + " -in2 " + fastq[1]
+              + " -out1 " + output['L'] + " -out2 " + output['R'])
 
 rule bwa_mem:
     #input: lambda w: ["trim/" + p for p in RUNS[(w['group'], w['prefix'])]]
