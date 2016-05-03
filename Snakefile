@@ -50,17 +50,20 @@ if 'params' not in config:
 
 INPUT_FILES = []
 for name in os.listdir(DATA):
+    print(name)
     if name.lower().endswith('.sha256sum'):
         continue
     if name.lower().endswith('.fastq'):
         if not name.endswith('.fastq'):
             print("Extension fastq is case sensitive.", file=sys.stderr)
             exit(1)
+        file_extension = 'fastq'
         INPUT_FILES.append(os.path.basename(name)[:-6])
     elif name.lower().endswith('.fastq.gz'):
         if not name.endswith('.fastq.gz'):
             print("Extension fastq is case sensitive.", file=sys.stderr)
             exit(1)
+        file_extension = 'fastq.gz'
         INPUT_FILES.append(os.path.basename(name)[:-len('.fastq.gz')])
     elif name.lower().endswith('.bam'):
         if not name.endswith('.bam'):
@@ -81,23 +84,31 @@ DESIGN = pd.read_csv(etc('GROUPS'), sep='\t')
 
 RUNS = {}
 for group, df in DESIGN.groupby('group'):
-    first = df[df['file'].str.contains('_R1')]
+    if '_R1' in df['file'][0]:
+        first_id = '_R1'
+        second_id = '_R2'
+    elif '_1' in df['file'][0]:
+        first_id = '_1'
+        second_id = '_2'
+    else:
+        raise ValueError("Unknown paired end sequencing identifiers")
+
+    first = df[df['file'].str.contains(first_id)]
     first = first.sort_values(by='file').reset_index(drop=True)
-    second = df[df['file'].str.contains('_R2')]
+    second = df[df['file'].str.contains(second_id)]
     second = second.sort_values(by='file').reset_index(drop=True)
     assert(len(df) == len(first) + len(second))
-    if not first['file'].str.replace('_R1', '_R2').equals(second['file']):
+    if not first['file'].str.replace(first_id, second_id).equals(second['file']):
         raise ValueError("Invalid file names for paired end sequencing")
     first = list(sorted(first['file'].values))
     second = list(sorted(second['file'].values))
-    prefix = [name[:name.find('_R1')] for name in first]
+    prefix = [name[:name.find(first_id)] for name in first]
     for prefix, file1, file2 in zip(prefix, first, second):
         assert (group, prefix) not in RUNS
         assert prefix and group
         assert '___' not in group and '___' not in prefix
         assert file1.startswith(prefix) and file2.startswith(prefix)
         RUNS[(group, prefix)] = (file1, file2)
-
 
 
 OUTPUT_FILES = []
@@ -119,8 +130,9 @@ rule checksums:
         else:
             shell("touch %s" % out)
 
+
 rule fastqc:
-    input: data("{name}.fastq")
+    input: data("{name}." + file_extension)
     output: result("fastqc/{name}")
     threads: 1
     run:
@@ -223,7 +235,6 @@ rule bwa_mem:
     output: "map_bwa/{group}___{prefix}.bam"
     params: "-t 20", "-M", "-R", r"@RG\tID:{group}\tSM:{group}"
     run:
-        print(input)
         fasta = ref(config['params']['fasta'])
         with tempfile.TemporaryDirectory() as tmp:
             progs = []
