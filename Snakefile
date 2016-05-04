@@ -263,7 +263,7 @@ rule merge_groups:
     input:
         ["map_bwa/{group}___{prefix}.bam".format(group=key[0], prefix=key[1])
          for key in RUNS]
-    output: result("aligned.bam")
+    output: result("{groups}_aligned.bam".format(groups='_'.join([key[0] for key in RUNS])))
     threads: 10
     shell: "samtools merge -l 9 -@ 20 {output} {input}"
 
