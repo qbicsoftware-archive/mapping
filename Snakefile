@@ -159,7 +159,7 @@ def align_sort(fastq, outfile, fasta, tmp, params=[]):
     sort_tmp = os.path.join(tmp,'sortedtmp.bam')
 
     sort = subprocess.Popen(
-        ['samtools', 'sort', '-l', '0', '-@', '10',
+        ['samtools', 'sort', '-@', '10',
          '-T', os.path.join(tmp, 'sort_tmp'),
          '-O', 'bam', '-o', sort_tmp, '-'],
         stdin=bwa.stdout,
@@ -223,8 +223,6 @@ rule trim:
                 fastq = list(input)
         else:
                 raise ValueError('Invalid input: %s' % input)
-        print(fastq[0])
-        print(fastq[1])
         shell("SeqPurge " + ' '.join(params) + " -in1 " + fastq[0] + " -in2 " + fastq[1]
               + " -out1 " + output['L'] + " -out2 " + output['R'])
 
@@ -251,7 +249,6 @@ rule bwa_mem:
                             name.endswith('.fq') or
                             name.endswith('.fq.gz')) for name in input)
                 fastq = list(input)
-                print(fastq)
             else:
                 raise ValueError('Invalid input: %s' % input)
             align_sort(fastq, output, fasta, tmp, params)
