@@ -115,7 +115,7 @@ OUTPUT_FILES = []
 OUTPUT_FILES.extend(expand(result("fastqc/{name}"), name=INPUT_FILES))
 
 rule all:
-    input: result("aligned.bam.bai"), OUTPUT_FILES, "checksums.ok"
+    input: result("{groups}_aligned.bam.bai".format(groups='_'.join([key[0] for key in RUNS]))), OUTPUT_FILES, "checksums.ok"
 
 rule checksums:
     output: "checksums.ok"
