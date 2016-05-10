@@ -167,16 +167,25 @@ def align_sort(fastq, outfile, fasta, tmp, params=[]):
         stderr=sys.stderr
     )
 
+
     bwa.stdout.close()
-    
     retcodebwa = bwa.wait()
     retcodesort = sort.wait()
     assert retcodebwa == 0
     assert retcodesort == 0
     assert bwa.returncode == 0
     assert sort.returncode == 0
+
+    index = subprocess.Popen(
+       ['samtools', 'index', sort_tmp],
+       stdout=sys.stdout,
+       stderr=sys.stderr
+    )
+    retcodeidx = index.wait()
+    assert retcodeix == 0
+    assert index.returncode == 0
     
-    rmdup = subprocess.Popen(['picard','MarkDuplicates','I='+sort_tmp,'O='+str(outfile), 'M='+os.path.join(tmp, 'output_matrix'),'AS=true','VALIDATION_STRINGENCY=LENIENT'],
+    rmdup = subprocess.Popen(['picard','MarkDuplicates','I='+sort_tmp,'O='+str(outfile), 'M='+os.path.join(tmp, 'output_matrix'),'AS=true'],
         stderr=sys.stderr,
         stdout=sys.stdout
     )  
