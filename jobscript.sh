@@ -12,7 +12,7 @@ echo Running on machine $(hostname)
 
 module load qbic/anaconda
 module load devel/java_jdk/1.7.0u45
-module load qbic/samtools/1.2
+module load bio/samtools/1.2
 module load qbic/bwa
 module load qbic/fastqc/0.11.4
 module load qbic/picard/git
