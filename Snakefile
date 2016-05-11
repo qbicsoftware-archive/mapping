@@ -240,7 +240,7 @@ rule bwa_mem:
     input: L="trim/{group}___{prefix}_R1.fastq",
            R="trim/{group}___{prefix}_R2.fastq"
     output: "map_bwa/{group}___{prefix}.bam"
-    params: "-t 20", "-M", "-R", r"@RG\tID:{group}\tSM:{group}"
+    params: "-t 10", "-M", "-R", r"@RG\tID:{group}\tSM:{group}"
     run:
         fasta = ref(config['params']['fasta'])
         with tempfile.TemporaryDirectory() as tmp:
