@@ -182,7 +182,7 @@ def align_sort(fastq, outfile, fasta, tmp, params=[]):
        stderr=sys.stderr
     )
     retcodeidx = index.wait()
-    assert retcodeix == 0
+    assert retcodeidx == 0
     assert index.returncode == 0
     
     rmdup = subprocess.Popen(['picard','MarkDuplicates','I='+sort_tmp,'O='+str(outfile), 'M='+os.path.join(tmp, 'output_matrix'),'AS=true'],
