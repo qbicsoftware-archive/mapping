@@ -113,9 +113,10 @@ for group, df in DESIGN.groupby('group'):
 
 OUTPUT_FILES = []
 OUTPUT_FILES.extend(expand(result("fastqc/{name}"), name=INPUT_FILES))
-
+test = [result("{groups}___{prefix}_aligned.bam.bai".format(groups=key[0], prefix=key[1])) for key in RUNS]
+print(test)
 rule all:
-    input: result("{groups}_aligned.bam.bai".format(groups='_'.join([key[0] for key in RUNS]))), OUTPUT_FILES, "checksums.ok"
+    input: [result("{groups}___{prefix}_aligned.bam.bai".format(groups=key[0], prefix=key[1])) for key in RUNS], OUTPUT_FILES, "checksums.ok"
 
 rule checksums:
     output: "checksums.ok"
@@ -239,7 +240,7 @@ rule bwa_mem:
     #input: lambda w: ["trim/" + p for p in RUNS[(w['group'], w['prefix'])]]
     input: L="trim/{group}___{prefix}_R1.fastq",
            R="trim/{group}___{prefix}_R2.fastq"
-    output: "map_bwa/{group}___{prefix}.bam"
+    output: result("{group}___{prefix}_aligned.bam")
     params: "-t 10", "-M", "-R", r"@RG\tID:{group}\tSM:{group}"
     run:
         fasta = ref(config['params']['fasta'])
@@ -257,7 +258,9 @@ rule bwa_mem:
                             name.endswith('.fastq.gz') or
                             name.endswith('.fq') or
                             name.endswith('.fq.gz')) for name in input)
-                fastq = list(input)
+                fastq = []
+                fastq.append(input['L'])
+                fastq.append(input['R'])
             else:
                 raise ValueError('Invalid input: %s' % input)
             align_sort(fastq, output, fasta, tmp, params)
@@ -265,13 +268,13 @@ rule bwa_mem:
             for prog in progs:
                 assert prog.returncode == 0
 
-rule merge_groups:
-    input:
-        ["map_bwa/{group}___{prefix}.bam".format(group=key[0], prefix=key[1])
-         for key in RUNS]
-    output: result("{groups}_aligned.bam".format(groups='_'.join([key[0] for key in RUNS])))
-    threads: 10
-    shell: "samtools merge -l 9 -@ 20 {output} {input}"
+#rule merge_groups:
+#    input:
+#        ["map_bwa/{group}___{prefix}.bam".format(group=key[0], prefix=key[1])
+#         for key in RUNS]
+#    output: result("{groups}_aligned.bam".format(groups='_'.join([key[0] for key in RUNS])))
+#    threads: 10
+#    shell: "samtools merge -l 9 -@ 20 {output} {input}"
 
 
 rule bam_index:
