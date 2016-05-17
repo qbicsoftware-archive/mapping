@@ -113,8 +113,7 @@ for group, df in DESIGN.groupby('group'):
 
 OUTPUT_FILES = []
 OUTPUT_FILES.extend(expand(result("fastqc/{name}"), name=INPUT_FILES))
-test = [result("{groups}___{prefix}_aligned.bam.bai".format(groups=key[0], prefix=key[1])) for key in RUNS]
-print(test)
+
 rule all:
     input: [result("{groups}___{prefix}_aligned.bam.bai".format(groups=key[0], prefix=key[1])) for key in RUNS], OUTPUT_FILES, "checksums.ok"
 
