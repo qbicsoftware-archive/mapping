@@ -45,12 +45,20 @@ def result(path):
 def etc(path):
     return os.path.join(ETC, path)
 
+def long_substr(data):
+    substr = ''
+    if len(data) > 1 and len(data[0]) > 0:
+        for i in range(len(data[0])):
+            for j in range(len(data[0])-i+1):
+                if j > len(substr) and all(data[0][i:i+j] in x for x in data):
+                    substr = data[0][i:i+j]
+    return substr
+
 if 'params' not in config:
     config['params'] = {}
 
 INPUT_FILES = []
 for name in os.listdir(DATA):
-    print(name)
     if name.lower().endswith('.sha256sum'):
         continue
     if name.lower().endswith('.fastq'):
@@ -84,10 +92,10 @@ DESIGN = pd.read_csv(etc('GROUPS'), sep='\t')
 
 RUNS = {}
 for group, df in DESIGN.groupby('group'):
-    if '_R1' in df['file'][0] or '_R2' in df['file'][0]:
+    if '_R1' in df['file'].iloc[0] or '_R2' in df['file'].iloc[0]:
         first_id = '_R1'
         second_id = '_R2'
-    elif '_1' in df['file'][0] or '_2' in df['file'][0]:
+    elif '_1' in df['file'].iloc[0] or '_2' in df['file'].iloc[0]:
         first_id = '_1'
         second_id = '_2'
     else:
@@ -98,16 +106,22 @@ for group, df in DESIGN.groupby('group'):
     second = df[df['file'].str.contains(second_id)]
     second = second.sort_values(by='file').reset_index(drop=True)
     assert(len(df) == len(first) + len(second))
-    if not first['file'].str.replace(first_id, second_id).equals(second['file']):
-        raise ValueError("Invalid file names for paired end sequencing")
+    # does not work for different timepoints
+    #if not first['file'].str.replace(first_id, second_id).equals(second['file']):
+    #    raise ValueError("Invalid file names for paired end sequencing")
     first = list(sorted(first['file'].values))
     second = list(sorted(second['file'].values))
     prefix = [name[:name.find(first_id)] for name in first]
+    #files_first = [name[:name.find(first_id)] for name in first]
+    #files_second = [name[:name.find(second_id)] for name in second]
+    #filenames = files_first + files_second
+    #prefix = long_substr(filenames)
     for prefix, file1, file2 in zip(prefix, first, second):
         assert (group, prefix) not in RUNS
         assert prefix and group
         assert '___' not in group and '___' not in prefix
-        assert file1.startswith(prefix) and file2.startswith(prefix)
+        #assert file1.startswith(prefix) and file2.startswith(prefix)
+        #assert prefix in file1 and prefix in file2
         RUNS[(group, prefix)] = (file1, file2)
 
 
