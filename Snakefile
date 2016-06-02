@@ -65,13 +65,11 @@ for name in os.listdir(DATA):
         if not name.endswith('.fastq'):
             print("Extension fastq is case sensitive.", file=sys.stderr)
             exit(1)
-        file_extension = 'fastq'
         INPUT_FILES.append(os.path.basename(name)[:-6])
     elif name.lower().endswith('.fastq.gz'):
         if not name.endswith('.fastq.gz'):
             print("Extension fastq is case sensitive.", file=sys.stderr)
             exit(1)
-        file_extension = 'fastq.gz'
         INPUT_FILES.append(os.path.basename(name)[:-len('.fastq.gz')])
     elif name.lower().endswith('.bam'):
         if not name.endswith('.bam'):
@@ -146,7 +144,7 @@ rule checksums:
 
 
 rule fastqc:
-    input: data("{name}." + file_extension)
+    input: data("{name}.fastq")
     output: result("fastqc/{name}")
     threads: 1
     run:
