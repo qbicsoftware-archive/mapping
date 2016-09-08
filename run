@@ -16,7 +16,7 @@ with open(snake_out, 'w') as out, open(snake_err, 'w') as err:
             "snakemake",
             "--snakefile", os.path.join(config['src'], 'Snakefile'),
             "--jobscript", os.path.join(config['src'], 'jobscript.sh'),
-            "--cluster", 'qsub',
+            "--cluster", 'msub',
             "--rerun-incomplete",
             "-j", "100",
             "--stats", stats_path,
