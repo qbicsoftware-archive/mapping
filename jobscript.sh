@@ -10,7 +10,7 @@ set -e
 
 echo Running on machine $(hostname)
 
-module load qbic/anaconda
+module load qbic/anaconda/2.1.0
 module load devel/java_jdk/1.7.0u45
 module load bio/samtools/1.2
 module load qbic/bwa
