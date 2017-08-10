@@ -293,3 +293,8 @@ rule bam_index:
     output: "{name}.bam.bai"
     threads: 1
     shell: "samtools index {input}"
+
+rule flagstat:
+    input: "{name}.bam"
+    output: "{name}.bam.flagstat"
+    shell: "samtools flagstat {input} > {output}"
