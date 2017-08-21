@@ -28,6 +28,7 @@ RESULT = config['result']
 LOGS = config['logs']
 REF = config['ref']
 ETC = config['etc']
+VAR = config['var']
 
 
 def data(path):
@@ -44,6 +45,9 @@ def result(path):
 
 def etc(path):
     return os.path.join(ETC, path)
+
+def fastq(path):
+    return os.path.join(os.path.join(VAR, 'fastq'), path)
 
 def long_substr(data):
     substr = ''
@@ -143,8 +147,25 @@ rule checksums:
             shell("touch %s" % out)
 
 
-rule fastqc:
+
+rule LinkUncompressed:
     input: data("{name}.fastq")
+    output: fastq("{name}.fastq")
+    shell: 
+        """
+        mkdir -p fastq
+        ln -s {input} {output}
+        sleep 60
+        touch --no-dereference {output}
+        """
+
+rule Uncompress:
+    input: data("{name}.fastq.gz")
+    output: fastq("{name}.fastq")
+    shell: "zcat {input} > {output}"
+
+rule fastqc:
+    input: fastq("{name}.fastq")
     output: result("fastqc/{name}")
     threads: 1
     run:
@@ -221,7 +242,7 @@ def pipe_bam_to_fastq(bam, fastq, temp_prefix):
     return collate, to_fastq
 
 rule trim:
-    input: lambda w: [data(p) for p in RUNS[(w['group'], w['prefix'])]]
+    input: lambda w: [fastq(p) for p in RUNS[(w['group'], w['prefix'])]]
     output:
        L="trim/{group}___{prefix}_R1.fastq",
        R="trim/{group}___{prefix}_R2.fastq"
