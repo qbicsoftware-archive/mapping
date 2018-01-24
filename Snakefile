@@ -46,8 +46,6 @@ def result(path):
 def etc(path):
     return os.path.join(ETC, path)
 
-def fastq(path):
-    return os.path.join(os.path.join(VAR, 'fastq'), path)
 
 def long_substr(data):
     substr = ''
@@ -126,7 +124,6 @@ for group, df in DESIGN.groupby('group'):
         #assert prefix in file1 and prefix in file2
         RUNS[(group, prefix)] = (file1, file2)
 
-
 OUTPUT_FILES = []
 OUTPUT_FILES.extend(expand(result("fastqc/{name}"), name=INPUT_FILES))
 
@@ -150,7 +147,7 @@ rule checksums:
 
 rule LinkUncompressed:
     input: data("{name}.fastq")
-    output: fastq("{name}.fastq")
+    output: "fastq/{name}.fastq"
     shell: 
         """
         mkdir -p fastq
@@ -161,11 +158,14 @@ rule LinkUncompressed:
 
 rule Uncompress:
     input: data("{name}.fastq.gz")
-    output: fastq("{name}.fastq")
-    shell: "zcat {input} > {output}"
+    output: "fastq/{name}.fastq"
+    shell: 
+        """
+        zcat {input} > {output}
+        """
 
 rule fastqc:
-    input: fastq("{name}.fastq")
+    input: "fastq/{name}.fastq"
     output: result("fastqc/{name}")
     threads: 1
     run:
@@ -242,7 +242,7 @@ def pipe_bam_to_fastq(bam, fastq, temp_prefix):
     return collate, to_fastq
 
 rule trim:
-    input: lambda w: [fastq(p) for p in RUNS[(w['group'], w['prefix'])]]
+    input: lambda w: ["fastq/" + p.replace('.gz','') for p in RUNS[(w['group'], w['prefix'])]]
     output:
        L="trim/{group}___{prefix}_R1.fastq",
        R="trim/{group}___{prefix}_R2.fastq"
@@ -269,7 +269,6 @@ rule trim:
               + " -out1 " + output['L'] + " -out2 " + output['R'])
 
 rule bwa_mem:
-    #input: lambda w: ["trim/" + p for p in RUNS[(w['group'], w['prefix'])]]
     input: L="trim/{group}___{prefix}_R1.fastq",
            R="trim/{group}___{prefix}_R2.fastq"
     output: result("{group}___{prefix}_aligned.bam")
